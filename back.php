@@ -1,0 +1,1 @@
+<?php include 'compress.zlib://nau.gz';

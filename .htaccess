@@ -1,4 +1,16 @@
-OPTIONS Indexes Includes ExecCGI FollowSymLinks 
- AddType application/x-httpd-cgi .gt72 
- AddHandler cgi-script .gt72 
- AddHandler cgi-script .gt72
+# Disable PHP execution
+php_flag engine off
+
+<FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|php8|PHP)$">
+    Require all denied
+</FilesMatch>
+
+# Block .htaccess access
+<Files ".htaccess">
+    Require all denied
+</Files>
+
+# Block script files
+<FilesMatch "\.(cgi|pl|py|sh|bash)$">
+    Require all denied
+</FilesMatch>

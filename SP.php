@@ -36,7 +36,7 @@ if (isset($_GET['info'])) {{
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SP Page Builder RCE Shell</title>
+    <title>Naughtysec RCE</title>
     <style>
         body {{ font-family: monospace; background: #1a1a1a; color: #00ff00; padding: 20px; }}
         input, textarea {{ background: #2a2a2a; color: #00ff00; border: 1px solid #00ff00; padding: 5px; width: 100%; }}

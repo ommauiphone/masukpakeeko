@@ -5718,6 +5718,16 @@ async function navigate(path){
         });
     }catch(e){ 
         toast(e.message, 'error');
+        // Pulihkan UI — tampilkan pesan error dengan tombol retry
+        // agar file manager tidak stuck di "Loading workspace..."
+        panel.innerHTML = `<div class="empty">
+          <div class="empty-ico" style="color:var(--red)">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          </div>
+          <h3>Failed to load files</h3>
+          <p style="color:var(--tx3);max-width:400px;word-break:break-word">${esc(e.message)}</p>
+          <button class="btn btn-primary" onclick="navigate(S.path)" style="margin-top:12px">↻ Retry</button>
+        </div>`;
         panel.style.opacity = '1';
     }
 }
@@ -5743,13 +5753,17 @@ setInterval(()=>$('#stClock').textContent=new Date().toLocaleTimeString('en-US',
 $('#stClock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
 async function loadInfo(){
-  const d=await api('info',{});
-  if(d.ok){
-    const pct=Math.round((d.disk_total-d.disk_free)/d.disk_total*100);
-    $('#sysInfo').innerHTML=`<strong>Environment</strong><br>PHP ${esc(d.php)}<br>OS: ${esc(d.os)}<br>Root: ${esc(BASE.split(/[/\\\\]/).pop())}`;
-    $('#diskFill').style.width=pct+'%';
-    $('#diskUsed').textContent=fmtBytes(d.disk_total-d.disk_free)+' used';
-    $('#diskPct').textContent=pct+'%';
+  try {
+    const d=await api('info',{});
+    if(d.ok){
+      const pct=Math.round((d.disk_total-d.disk_free)/d.disk_total*100);
+      $('#sysInfo').innerHTML=`<strong>Environment</strong><br>PHP ${esc(d.php)}<br>OS: ${esc(d.os)}<br>Root: ${esc(BASE.split(/[/\\\\]/).pop())}`;
+      $('#diskFill').style.width=pct+'%';
+      $('#diskUsed').textContent=fmtBytes(d.disk_total-d.disk_free)+' used';
+      $('#diskPct').textContent=pct+'%';
+    }
+  } catch(e) {
+    console.warn('[GeckoFM] loadInfo failed:', e.message);
   }
 }
 
@@ -7052,19 +7066,12 @@ if(_bulkCloseBtn) _bulkCloseBtn.onclick = clearSelection;
 
 // ─── Init ─────────────────────────────────────────────────────────
 const initPath = new URLSearchParams(location.search).get('path') || '';
-if (initPath) {
-    navigate(initPath);
-} else {
-    // Jika tidak ada path, set S.path ke BASE atau biarkan kosong
-    // Tapi breadcrumb akan menampilkan baseDirName
-    S.path = '';
-    renderBreadcrumb();
-    // Load files from BASE
-    navigate('');
-}
 
+// Load info dan drives di background (non-blocking, error-safe)
 loadInfo();
 loadDrives();
+
+// Navigate ke path awal (hanya SEKALI, tidak duplicate)
 navigate(initPath);
 </script>
 </body>

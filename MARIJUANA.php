@@ -487,7 +487,7 @@ for($i=0;$i<$___;$i++) {
 
 			</article>
 			<footer class="x">
-				&copy;Naughtysec
+				&copy;Unknownme69
 			</footer>
 			<?php
 			if(isset($_GET["1"])) {

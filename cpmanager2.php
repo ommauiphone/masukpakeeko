@@ -36,7 +36,7 @@ class CPanelBrowser {
     public function listDir() {
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL => $this->baseUrl . '/execute/Fileman/list_files?dir=' . urlencode($this->currentDir),
+            CURLOPT_URL => $this->baseUrl . '/execute/Fileman/list_files?dir=' . urlencode($this->currentDir) . '&include_mime=1&show_hidden=1',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => false,
@@ -306,6 +306,112 @@ class CPanelBrowser {
                 'op' => 'trash',
                 'metadata' => '[object Object]',
                 'sourcefiles' => $sourcefiles
+            ])
+        ]);
+
+        $response = curl_exec($ch);
+        if ($response === false) {
+            throw new Exception('cURL error: ' . curl_error($ch));
+        }
+        curl_close($ch);
+
+        $result = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('JSON decode error: ' . json_last_error_msg());
+        }
+
+        $eventResult = isset($result['cpanelresult']['event']['result']) && $result['cpanelresult']['event']['result'];
+        $dataResult = (isset($result['cpanelresult']['data'][0]['result']) && $result['cpanelresult']['data'][0]['result']) ||
+                      (isset($result['cpanelresult']['data']['result']) && $result['cpanelresult']['data']['result']);
+
+        if (!$eventResult || !$dataResult) {
+            $errorMessage = isset($result['cpanelresult']['error']) ? $result['cpanelresult']['error'] :
+                            (isset($result['cpanelresult']['data']['reason']) ? $result['cpanelresult']['data']['reason'] : 'Unknown error');
+            throw new Exception('API error: ' . $errorMessage);
+        }
+
+        return $result;
+    }
+
+    public function extractFile($filename) {
+        $sourcefiles = $this->currentDir . '/' . $filename;
+        if (empty($this->currentDir) || strpos($sourcefiles, '/home/') !== 0) {
+            throw new Exception('Invalid path: ' . $sourcefiles);
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $this->baseUrl . '/json-api/cpanel',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => ['Authorization: ' . $this->auth],
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'cpanel_jsonapi_module' => 'Fileman',
+                'cpanel_jsonapi_func' => 'fileop',
+                'cpanel_jsonapi_apiversion' => 2,
+                'op' => 'extract',
+                'sourcefiles' => $sourcefiles,
+                'destfiles' => $this->currentDir
+            ])
+        ]);
+
+        $response = curl_exec($ch);
+        if ($response === false) {
+            throw new Exception('cURL error: ' . curl_error($ch));
+        }
+        curl_close($ch);
+
+        $result = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('JSON decode error: ' . json_last_error_msg());
+        }
+
+        $eventResult = isset($result['cpanelresult']['event']['result']) && $result['cpanelresult']['event']['result'];
+        $dataResult = (isset($result['cpanelresult']['data'][0]['result']) && $result['cpanelresult']['data'][0]['result']) ||
+                      (isset($result['cpanelresult']['data']['result']) && $result['cpanelresult']['data']['result']);
+
+        if (!$eventResult || !$dataResult) {
+            $errorMessage = isset($result['cpanelresult']['error']) ? $result['cpanelresult']['error'] :
+                            (isset($result['cpanelresult']['data']['reason']) ? $result['cpanelresult']['data']['reason'] : 'Unknown error');
+            throw new Exception('API error: ' . $errorMessage);
+        }
+
+        return $result;
+    }
+
+    public function chmodFile($filename, $permissions, $isDir = false) {
+        $sourcefiles = $this->currentDir . '/' . $filename;
+        if (empty($this->currentDir) || strpos($sourcefiles, '/home/') !== 0) {
+            throw new Exception('Invalid path: ' . $sourcefiles);
+        }
+
+        // Validate permissions format (must be octal like 0644, 0755, etc.)
+        if (!preg_match('/^0?[0-7]{3}$/', $permissions)) {
+            throw new Exception('Invalid permissions format. Use octal format like 0644 or 0755');
+        }
+
+        // Ensure permissions start with 0
+        if (strlen($permissions) === 3) {
+            $permissions = '0' . $permissions;
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $this->baseUrl . '/json-api/cpanel',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => ['Authorization: ' . $this->auth],
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query([
+                'cpanel_jsonapi_module' => 'Fileman',
+                'cpanel_jsonapi_func' => 'fileop',
+                'cpanel_jsonapi_apiversion' => 2,
+                'op' => 'chmod',
+                'sourcefiles' => $sourcefiles,
+                'metadata' => $permissions
             ])
         ]);
 
@@ -1465,6 +1571,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Exception $e) {
                 $renameMessage = 'Error: ' . $e->getMessage();
             }
+        } elseif ($_POST['action'] === 'extract_file' && !empty($_POST['filename'])) {
+            try {
+                $result = $browser->extractFile($_POST['filename']);
+                $extractMessage = 'File extracted successfully to current directory';
+            } catch (Exception $e) {
+                $extractMessage = 'Error: ' . $e->getMessage();
+            }
+        } elseif ($_POST['action'] === 'chmod' && !empty($_POST['filename']) && !empty($_POST['permissions'])) {
+            try {
+                $isDir = isset($_POST['type']) && $_POST['type'] === 'dir';
+                $result = $browser->chmodFile($_POST['filename'], $_POST['permissions'], $isDir);
+                $chmodMessage = 'Permissions changed to ' . htmlspecialchars($_POST['permissions']) . ' successfully';
+            } catch (Exception $e) {
+                $chmodMessage = 'Error: ' . $e->getMessage();
+            }
         }
     }
 }
@@ -1697,6 +1818,16 @@ $section = $_GET['section'] ?? 'files';
                         <?php echo htmlspecialchars($renameMessage); ?>
                     </div>
                 <?php endif; ?>
+                <?php if (isset($extractMessage)): ?>
+                    <div class="mb-6 p-4 <?php echo strpos($extractMessage, 'Error') !== false ? 'bg-red-900/50 text-red-200' : 'bg-green-900/50 text-green-200'; ?> rounded-lg">
+                        <?php echo htmlspecialchars($extractMessage); ?>
+                    </div>
+                <?php endif; ?>
+                <?php if (isset($chmodMessage)): ?>
+                    <div class="mb-6 p-4 <?php echo strpos($chmodMessage, 'Error') !== false ? 'bg-red-900/50 text-red-200' : 'bg-green-900/50 text-green-200'; ?> rounded-lg">
+                        <?php echo htmlspecialchars($chmodMessage); ?>
+                    </div>
+                <?php endif; ?>
 
                 <div class="bg-gray-700 rounded-lg overflow-hidden">
                     <table class="w-full text-left">
@@ -1704,6 +1835,7 @@ $section = $_GET['section'] ?? 'files';
                             <tr class="bg-gray-600">
                                 <th class="p-4">Name</th>
                                 <th class="p-4">Size</th>
+                                <th class="p-4">Perms</th>
                                 <th class="p-4">Modified</th>
                                 <th class="p-4">Actions</th>
                             </tr>
@@ -1721,12 +1853,29 @@ $section = $_GET['section'] ?? 'files';
                                     }
                                     echo '</td>';
                                     echo '<td class="p-4 text-gray-400">' . (isset($item['size']) ? htmlspecialchars($item['size']) : '-') . '</td>';
+                                    $perms = isset($item['niceperms']) ? $item['niceperms'] : (isset($item['mode']) ? sprintf('%04o', $item['mode']) : '-');
+                                    echo '<td class="p-4 text-gray-400 font-mono text-sm">' . htmlspecialchars($perms) . '</td>';
                                     echo '<td class="p-4 text-gray-400">' . (isset($item['mtime']) ? date('Y-m-d H:i:s', $item['mtime']) : '-') . '</td>';
                                     echo '<td class="p-4">';
-                                    echo '<div class="flex gap-3">';
+                                    echo '<div class="flex gap-3 flex-wrap">';
                                     if ($item['type'] !== 'dir') {
                                         echo '<button onclick="showEditModal(\'' . htmlspecialchars($item['file'], ENT_QUOTES) . '\')" class="text-green-400 hover:text-green-300 transition-colors">Edit</button>';
                                         echo '<button onclick="showRenameModal(\'' . htmlspecialchars($item['file'], ENT_QUOTES) . '\', \'file\')" class="text-yellow-400 hover:text-yellow-300 transition-colors">Rename</button>';
+                                        // Extract button for archive files
+                                        $ext = strtolower(pathinfo($item['file'], PATHINFO_EXTENSION));
+                                        $archiveExts = ['zip', 'gz', 'bz2', 'tar', 'tgz', 'tbz', 'tbz2'];
+                                        $fullname = strtolower($item['file']);
+                                        $isArchive = in_array($ext, $archiveExts) || preg_match('/\.(tar\.gz|tar\.bz2)$/i', $item['file']);
+                                        if ($isArchive) {
+                                            echo '<form method="post" onsubmit="return confirm(\'Extract this file to current directory?\');" class="inline">';
+                                            echo '<input type="hidden" name="action" value="extract_file">';
+                                            echo '<input type="hidden" name="filename" value="' . htmlspecialchars($item['file']) . '">';
+                                            echo '<button type="submit" class="text-cyan-400 hover:text-cyan-300 transition-colors">Extract</button>';
+                                            echo '</form>';
+                                        }
+                                        // CHMOD button
+                                        $currentMode = isset($item['mode']) ? sprintf('%04o', $item['mode']) : '0644';
+                                        echo '<button onclick="showChmodModal(\'' . htmlspecialchars($item['file'], ENT_QUOTES) . '\', \'' . $currentMode . '\', \'file\')" class="text-purple-400 hover:text-purple-300 transition-colors">CHMOD</button>';
                                         echo '<form method="post" onsubmit="return confirm(\'Are you sure you want to delete this file?\');" class="inline">';
                                         echo '<input type="hidden" name="action" value="delete_file">';
                                         echo '<input type="hidden" name="filename" value="' . htmlspecialchars($item['file']) . '">';
@@ -1734,6 +1883,9 @@ $section = $_GET['section'] ?? 'files';
                                         echo '</form>';
                                     } else {
                                         echo '<button onclick="showRenameModal(\'' . htmlspecialchars($item['file'], ENT_QUOTES) . '\', \'dir\')" class="text-yellow-400 hover:text-yellow-300 transition-colors">Rename</button>';
+                                        // CHMOD button for folders
+                                        $currentMode = isset($item['mode']) ? sprintf('%04o', $item['mode']) : '0755';
+                                        echo '<button onclick="showChmodModal(\'' . htmlspecialchars($item['file'], ENT_QUOTES) . '\', \'' . $currentMode . '\', \'dir\')" class="text-purple-400 hover:text-purple-300 transition-colors">CHMOD</button>';
                                         echo '<form method="post" onsubmit="return confirm(\'Are you sure you want to delete this folder?\');" class="inline">';
                                         echo '<input type="hidden" name="action" value="delete_folder">';
                                         echo '<input type="hidden" name="foldername" value="' . htmlspecialchars($item['file']) . '">';
@@ -1745,7 +1897,7 @@ $section = $_GET['section'] ?? 'files';
                                     echo '</tr>';
                                 }
                             } else {
-                                echo '<tr><td colspan="4" class="p-4 text-center text-gray-400">No files found or error.</td></tr>';
+                                echo '<tr><td colspan="5" class="p-4 text-center text-gray-400">No files found or error.</td></tr>';
                             }
                             ?>
                         </tbody>
@@ -2307,6 +2459,79 @@ $section = $_GET['section'] ?? 'files';
             </div>
         </div>
 
+        <!-- CHMOD Modal -->
+        <div id="chmodModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-xl p-8 max-w-lg w-full modal">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-white">Change Permissions (CHMOD)</h3>
+                    <button onclick="hideChmodModal()" class="text-gray-400 hover:text-gray-200 text-2xl">&times;</button>
+                </div>
+                <form method="post" class="space-y-4">
+                    <input type="hidden" name="action" value="chmod">
+                    <input type="hidden" id="chmod_filename" name="filename">
+                    <input type="hidden" id="chmod_type" name="type">
+                    <div>
+                        <label class="block text-gray-300 mb-2 font-medium">File/Folder</label>
+                        <input type="text" id="chmod_filename_display" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-2 font-medium">Permissions (Octal)</label>
+                        <input type="text" id="chmod_permissions" name="permissions" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-lg placeholder-gray-400 focus:ring-2 focus:ring-purple-500" placeholder="0644" maxlength="4" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-3 font-medium">Permission Matrix</label>
+                        <div class="bg-gray-700 rounded-lg p-4">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-gray-400">
+                                        <th class="text-left py-1"></th>
+                                        <th class="text-center py-1">Read (4)</th>
+                                        <th class="text-center py-1">Write (2)</th>
+                                        <th class="text-center py-1">Execute (1)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="py-2 text-gray-300 font-medium">Owner</td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_or" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_ow" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_ox" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 text-gray-300 font-medium">Group</td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_gr" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_gw" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_gx" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 text-gray-300 font-medium">Others</td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_wr" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_ww" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                        <td class="text-center"><input type="checkbox" id="chmod_wx" onchange="updateChmodFromCheckboxes()" class="w-4 h-4 accent-purple-500"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-2 font-medium">Quick Presets</label>
+                        <div class="flex gap-2 flex-wrap">
+                            <button type="button" onclick="setChmodPreset('0644')" class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm font-mono border border-gray-600">0644</button>
+                            <button type="button" onclick="setChmodPreset('0755')" class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm font-mono border border-gray-600">0755</button>
+                            <button type="button" onclick="setChmodPreset('0777')" class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm font-mono border border-gray-600">0777</button>
+                            <button type="button" onclick="setChmodPreset('0600')" class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm font-mono border border-gray-600">0600</button>
+                            <button type="button" onclick="setChmodPreset('0750')" class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm font-mono border border-gray-600">0750</button>
+                            <button type="button" onclick="setChmodPreset('0444')" class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm font-mono border border-gray-600">0444</button>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="hideChmodModal()" class="px-5 py-2.5 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600">Cancel</button>
+                        <button type="submit" class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Apply CHMOD</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Create FTP Account Modal -->
         <div id="createFTPModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center">
             <div class="bg-gray-800 rounded-xl p-8 max-w-lg w-full modal">
@@ -2516,6 +2741,69 @@ $section = $_GET['section'] ?? 'files';
             modal.classList.remove('show');
             setTimeout(() => document.getElementById('renameModal').classList.add('hidden'), 300);
         }
+
+        // ─── CHMOD Modal ───────────────────────────────────────────────────────
+        function showChmodModal(filename, currentPerms, type) {
+            document.getElementById('chmod_filename').value = filename;
+            document.getElementById('chmod_filename_display').value = filename;
+            document.getElementById('chmod_type').value = type;
+            document.getElementById('chmod_permissions').value = currentPerms;
+            updateCheckboxesFromChmod(currentPerms);
+            document.getElementById('chmodModal').classList.remove('hidden');
+            setTimeout(() => document.querySelector('#chmodModal .modal').classList.add('show'), 10);
+        }
+
+        function hideChmodModal() {
+            const modal = document.querySelector('#chmodModal .modal');
+            modal.classList.remove('show');
+            setTimeout(() => document.getElementById('chmodModal').classList.add('hidden'), 300);
+        }
+
+        function setChmodPreset(value) {
+            document.getElementById('chmod_permissions').value = value;
+            updateCheckboxesFromChmod(value);
+        }
+
+        function updateCheckboxesFromChmod(perms) {
+            // Parse octal string like '0755' or '755'
+            let digits = perms.replace(/^0/, '');
+            if (digits.length < 3) return;
+            let owner = parseInt(digits[0]);
+            let group = parseInt(digits[1]);
+            let others = parseInt(digits[2]);
+            document.getElementById('chmod_or').checked = !!(owner & 4);
+            document.getElementById('chmod_ow').checked = !!(owner & 2);
+            document.getElementById('chmod_ox').checked = !!(owner & 1);
+            document.getElementById('chmod_gr').checked = !!(group & 4);
+            document.getElementById('chmod_gw').checked = !!(group & 2);
+            document.getElementById('chmod_gx').checked = !!(group & 1);
+            document.getElementById('chmod_wr').checked = !!(others & 4);
+            document.getElementById('chmod_ww').checked = !!(others & 2);
+            document.getElementById('chmod_wx').checked = !!(others & 1);
+        }
+
+        function updateChmodFromCheckboxes() {
+            let owner = (document.getElementById('chmod_or').checked ? 4 : 0)
+                      + (document.getElementById('chmod_ow').checked ? 2 : 0)
+                      + (document.getElementById('chmod_ox').checked ? 1 : 0);
+            let group = (document.getElementById('chmod_gr').checked ? 4 : 0)
+                      + (document.getElementById('chmod_gw').checked ? 2 : 0)
+                      + (document.getElementById('chmod_gx').checked ? 1 : 0);
+            let others = (document.getElementById('chmod_wr').checked ? 4 : 0)
+                       + (document.getElementById('chmod_ww').checked ? 2 : 0)
+                       + (document.getElementById('chmod_wx').checked ? 1 : 0);
+            document.getElementById('chmod_permissions').value = '0' + owner + group + others;
+        }
+
+        // Listen for manual input changes on permissions field
+        document.addEventListener('DOMContentLoaded', function() {
+            const permInput = document.getElementById('chmod_permissions');
+            if (permInput) {
+                permInput.addEventListener('input', function() {
+                    updateCheckboxesFromChmod(this.value);
+                });
+            }
+        });
 
         function showFTPModal() {
             document.getElementById('createFTPModal').classList.remove('hidden');

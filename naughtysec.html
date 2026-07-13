@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ACCESS GRANTED :: NaughtySec</title>
+<style>
+  @font-face {
+    font-family: 'TermFallback';
+    src: local('Courier New');
+  }
+
+  :root {
+    --matrix-green: #00ff9c;
+    --matrix-dim: #0a3d2a;
+    --bg-black: #020604;
+    --glow: 0 0 6px rgba(0,255,156,0.8), 0 0 14px rgba(0,255,156,0.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-black);
+    overflow: hidden;
+    font-family: 'Courier New', 'Consolas', monospace;
+  }
+
+  #matrixCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    opacity: 0.55;
+  }
+
+  #bannerBg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-image: url('https://ik.imagekit.io/slot5000/banner.jpg');
+    background-size: cover;
+    background-position: center;
+    filter: grayscale(20%) brightness(0.55) contrast(1.1);
+    z-index: 0;
+  }
+
+  #scanlines {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 3;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.18) 3px,
+      rgba(0,0,0,0) 4px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  #vignette {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 3;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.75) 100%);
+  }
+
+  .flicker {
+    animation: flicker 4.5s infinite;
+  }
+
+  @keyframes flicker {
+    0%, 92%, 100% { opacity: 1; }
+    93% { opacity: 0.86; }
+    94% { opacity: 1; }
+    95% { opacity: 0.9; }
+    96% { opacity: 1; }
+  }
+
+  #terminalWrap {
+    position: fixed;
+    z-index: 5;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(720px, 90vw);
+    background: rgba(1, 8, 4, 0.72);
+    border: 1px solid var(--matrix-green);
+    box-shadow: var(--glow), inset 0 0 40px rgba(0,255,156,0.06);
+    border-radius: 4px;
+    backdrop-filter: blur(1px);
+  }
+
+  #titleBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: linear-gradient(to bottom, #0d1a12, #06100b);
+    border-bottom: 1px solid var(--matrix-dim);
+    border-radius: 4px 4px 0 0;
+  }
+
+  .dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #2a4a3a;
+    border: 1px solid #0f2a1c;
+  }
+
+  #titleBar span.label {
+    margin-left: 10px;
+    color: var(--matrix-green);
+    font-size: 12px;
+    letter-spacing: 1px;
+    opacity: 0.8;
+  }
+
+  #termBody {
+    padding: 22px 26px 30px 26px;
+    color: var(--matrix-green);
+    font-size: 15px;
+    line-height: 1.65;
+    text-shadow: 0 0 4px rgba(0,255,156,0.6);
+    min-height: 260px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  #termBody .prompt-user { color: #6cffb8; }
+  #termBody .path { color: #35d38a; }
+  #termBody .comment { color: #0f7a52; }
+  #termBody .warn { color: #ffb03b; text-shadow: 0 0 4px rgba(255,176,59,0.6); }
+
+  #asciiSkull {
+    color: var(--matrix-green);
+    font-size: 11px;
+    line-height: 1.05;
+    text-align: center;
+    margin: 6px 0 16px 0;
+    text-shadow: 0 0 8px rgba(0,255,156,0.7);
+    white-space: pre;
+  }
+
+  #pwnedLine {
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-top: 10px;
+    color: #baffdf;
+    text-shadow: 0 0 8px rgba(0,255,156,0.9), 0 0 20px rgba(0,255,156,0.5);
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 9px;
+    height: 16px;
+    background: var(--matrix-green);
+    box-shadow: var(--glow);
+    margin-left: 4px;
+    vertical-align: middle;
+    animation: blink 1s step-start infinite;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  #footer {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    color: var(--matrix-dim);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+
+  ::selection {
+    background: var(--matrix-green);
+    color: #000;
+  }
+</style>
+</head>
+<body>
+
+<div id="bannerBg"></div>
+<canvas id="matrixCanvas"></canvas>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<div id="terminalWrap" class="flicker">
+  <div id="titleBar">
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <span class="label">root@naughtysec: ~/breach</span>
+  </div>
+  <div id="termBody">
+    <span id="typedOutput"></span><span class="cursor"></span>
+  </div>
+</div>
+
+<div id="footer">connection secured // trace terminated</div>
+
+<script>
+  // ---------- Matrix rain ----------
+  const canvas = document.getElementById('matrixCanvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, columns, drops;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    const fontSize = 16;
+    columns = Math.floor(w / fontSize);
+    drops = new Array(columns).fill(1);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const chars = 'アイウエオカキクケコサシスセソタチツテト0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@!%&*+-<>';
+  const fontSize = 16;
+
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(2,6,4,0.08)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = chars[Math.floor(Math.random() * chars.length)];
+      const x = i * fontSize;
+      const y = drops[i] * fontSize;
+
+      ctx.fillStyle = '#00ff9c';
+      ctx.shadowColor = '#00ff9c';
+      ctx.shadowBlur = 4;
+      ctx.fillText(text, x, y);
+      ctx.shadowBlur = 0;
+
+      if (y > h && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i]++;
+    }
+  }
+  setInterval(drawMatrix, 45);
+
+  // ---------- Terminal typing sequence ----------
+  const lines = [
+    { text: 'root@naughtysec:~$ ./initiate_breach.sh --target=all --stealth=true', cls: '' },
+    { text: '[*] Establishing encrypted tunnel............ OK', cls: 'comment' },
+    { text: '[*] Bypassing firewall rulesets............... OK', cls: 'comment' },
+    { text: '[*] Escalating privileges...................... root', cls: 'comment' },
+    { text: '[*] Wiping access logs......................... done', cls: 'comment' },
+    { text: '[!] SYSTEM INTEGRITY: COMPROMISED', cls: 'warn' },
+    { text: '', cls: '' },
+    { text: 'PWNED_BY: NaughtySec', cls: 'pwned' },
+  ];
+
+  const out = document.getElementById('typedOutput');
+  let lineIdx = 0, charIdx = 0;
+
+  function typeNext() {
+    if (lineIdx >= lines.length) return;
+    const current = lines[lineIdx];
+
+    if (charIdx === 0 && current.cls === 'pwned') {
+      out.innerHTML += '<div id="pwnedLine"></div>';
+    }
+
+    if (charIdx < current.text.length) {
+      const target = current.cls === 'pwned'
+        ? document.getElementById('pwnedLine')
+        : null;
+
+      if (target) {
+        target.textContent += current.text[charIdx];
+      } else {
+        out.innerHTML += current.text[charIdx];
+      }
+      charIdx++;
+      setTimeout(typeNext, current.cls === 'pwned' ? 55 : 14);
+    } else {
+      if (current.cls !== 'pwned') out.innerHTML += '\n';
+      lineIdx++;
+      charIdx = 0;
+      setTimeout(typeNext, 260);
+    }
+  }
+
+  setTimeout(typeNext, 500);
+</script>
+
+</body>
+</html>

